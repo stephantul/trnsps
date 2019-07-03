@@ -1,10 +1,20 @@
 """Generate transposition, deletion, and substitution primes."""
 import numpy as np
 
-from collections import defaultdict
+from collections import Counter
 from itertools import combinations, chain
 from string import ascii_lowercase
 from itertools import product
+
+
+def generate_bigram_counts(words, n=2):
+    words = set(words)
+    grams = Counter()
+
+    for w in words:
+        grams.update(ngrams(w, n))
+
+    return grams
 
 
 def mean_bigram_freq(word, gram_freq):
@@ -18,38 +28,42 @@ def ngrams(x, n):
         yield x[idx:idx+n]
 
 
-def substitution(words, reference_corpus, n=1, k=10):
-    """
-    Generate substitutions
+def specific_substitution(words, reference_corpus, indices):
+    """Generate substitutions for specific positions."""
+    assert len(words) == len(indices)
+    grams = mean_bigram_freq(words)
+    for w, indices in zip(words):
+        base = mean_bigram_freq(w)
+        res = {w: abs(mean_bigram_freq(w, grams) - base)
+               for w in _sub_subloop(w, indices)}
+        yield w, sorted(res.items(), key=lambda x: [1])
 
-    """
+
+def _sub_subloop(word, indices):
+    for bundle in product(*[ascii_lowercase] * len(indices)):
+        pw = list(word)
+        for idx, lett in zip(indices, bundle):
+            pw[idx] = lett
+        pw = "".join(pw)
+        if pw == word:
+            continue
+        yield pw
+
+
+def substitution(words, reference_corpus, n=1, k=10):
+    """Generate substitutions"""
     lengths = np.array([len(w) for w in words])
     assert np.all(lengths > 3)
-    reference_corpus = set(reference_corpus)
-    grams = defaultdict(int)
 
-    for w in reference_corpus:
-        for x in ngrams(w, 2):
-            grams[x] += 1
-
-    substitutions = {}
+    grams = generate_bigram_counts(reference_corpus)
     for w in words:
         base = mean_bigram_freq(w, grams)
         # Generate all possible transpositions.
         res = {}
         for indices in combinations(range(1, len(w)-1), n):
-
-            for bundle in product(*[ascii_lowercase] * n):
-                pw = list(w)
-                for idx, lett in zip(indices, bundle):
-                    pw[idx] = lett
-                pw = "".join(pw)
-                if pw == w:
-                    continue
-                res[pw] = abs(mean_bigram_freq(pw, grams) - base)
-
-        substitutions[w] = sorted(res.items(), key=lambda x: x[1])[:k]
-    return substitutions
+            res.update({w: abs(mean_bigram_freq(w, grams) - base)
+                        for w in _sub_subloop(w, indices)})
+        yield w, sorted(res.items(), key=lambda x: x[1])[:k]
 
 
 def deletion(words, reference_corpus, n=1, k=10):
@@ -72,14 +86,7 @@ def deletion(words, reference_corpus, n=1, k=10):
     lengths = np.array([len(w) for w in words])
     assert np.all(lengths > 3)
     reference_corpus = set(reference_corpus)
-    grams = defaultdict(int)
-
-    for w in reference_corpus:
-        for x in ngrams(w, 2):
-            grams[x] += 1
-
-    deletions = {}
-
+    grams = generate_bigram_counts(reference_corpus)
     for w in words:
         base = mean_bigram_freq(w, grams)
         # Generate all possible transpositions.
@@ -92,8 +99,7 @@ def deletion(words, reference_corpus, n=1, k=10):
                 continue
             res[pw] = abs(mean_bigram_freq(pw, grams) - base)
 
-        deletions[w] = sorted(res.items(), key=lambda x: x[1])[:k]
-    return deletions
+        yield w, sorted(res.items(), key=lambda x: x[1])[:k]
 
 
 def transposition(words, reference_corpus, constraint=2, n=1, k=10):
@@ -119,13 +125,7 @@ def transposition(words, reference_corpus, constraint=2, n=1, k=10):
     lengths = np.array([len(w) for w in words])
     assert np.all(lengths > 3)
     reference_corpus = set(reference_corpus)
-    grams = defaultdict(int)
-
-    for w in reference_corpus:
-        for x in ngrams(w, 2):
-            grams[x] += 1
-
-    transpositions = {}
+    grams = generate_bigram_counts(reference_corpus)
 
     for w in words:
         base = mean_bigram_freq(w, grams)
@@ -144,5 +144,4 @@ def transposition(words, reference_corpus, constraint=2, n=1, k=10):
                 continue
             res[pw] = abs(mean_bigram_freq(pw, grams) - base)
 
-        transpositions[w] = sorted(res.items(), key=lambda x: x[1])[:k]
-    return transpositions
+        yield w, sorted(res.items(), key=lambda x: x[1])[:k]
