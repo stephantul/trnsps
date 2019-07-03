@@ -8,6 +8,7 @@ from itertools import product
 
 
 def generate_bigram_counts(words, n=2):
+    """Generate counts of bigrams."""
     words = set(words)
     grams = Counter()
 
@@ -39,13 +40,13 @@ def specific_substitution(words, reference_corpus, indices):
         yield w, sorted(res.items(), key=lambda x: [1])
 
 
-def _sub_subloop(word, indices):
+def _sub_subloop(word, indices, reference_corpus):
     for bundle in product(*[ascii_lowercase] * len(indices)):
         pw = list(word)
         for idx, lett in zip(indices, bundle):
             pw[idx] = lett
         pw = "".join(pw)
-        if pw == word:
+        if pw == word or pw in reference_corpus:
             continue
         yield pw
 
@@ -62,7 +63,7 @@ def substitution(words, reference_corpus, n=1, k=10):
         res = {}
         for indices in combinations(range(1, len(w)-1), n):
             res.update({w: abs(mean_bigram_freq(w, grams) - base)
-                        for w in _sub_subloop(w, indices)})
+                        for w in _sub_subloop(w, indices, reference_corpus)})
         yield w, sorted(res.items(), key=lambda x: x[1])[:k]
 
 
@@ -95,7 +96,7 @@ def deletion(words, reference_corpus, n=1, k=10):
             pw = list(w)
             indices = set(indices)
             pw = "".join([x for idx, x in enumerate(pw) if idx not in indices])
-            if pw == w:
+            if pw == w or pw in reference_corpus:
                 continue
             res[pw] = abs(mean_bigram_freq(pw, grams) - base)
 
@@ -140,7 +141,7 @@ def transposition(words, reference_corpus, constraint=2, n=1, k=10):
             for x, y in c:
                 pw[x], pw[y] = pw[y], pw[x]
             pw = "".join(pw)
-            if pw == w:
+            if pw == w or pw in reference_corpus:
                 continue
             res[pw] = abs(mean_bigram_freq(pw, grams) - base)
 
