@@ -7,6 +7,10 @@ from string import ascii_lowercase
 from itertools import product
 
 
+VOWELS = {"a", "e", "i", "o", "u", "y", "j"}
+CONSONANTS = set(ascii_lowercase) - VOWELS
+
+
 def generate_bigram_counts(words, n=2):
     """Generate counts of bigrams."""
     words = set(words)
@@ -29,19 +33,29 @@ def ngrams(x, n):
         yield x[idx:idx+n]
 
 
-def specific_substitution(words, reference_corpus, indices):
+def find_diffs(x, y):
+    """Find the differing indices of two words."""
+    return [idx for idx, (x, y) in enumerate(zip(x, y)) if x != y]
+
+
+def specific_substitution(word, reference_corpus, indices, k=10):
     """Generate substitutions for specific positions."""
-    assert len(words) == len(indices)
-    grams = mean_bigram_freq(words)
-    for w, indices in zip(words):
-        base = mean_bigram_freq(w)
-        res = {w: abs(mean_bigram_freq(w, grams) - base)
-               for w in _sub_subloop(w, indices)}
-        yield w, sorted(res.items(), key=lambda x: [1])
+    grams = generate_bigram_counts(reference_corpus)
+    base = mean_bigram_freq(word, grams)
+    res = {}
+    for pw in _sub_subloop(word, indices, reference_corpus):
+        f = mean_bigram_freq(pw, grams)
+        res[pw] = abs(f - base)
+    return res
 
 
 def _sub_subloop(word, indices, reference_corpus):
-    for bundle in product(*[ascii_lowercase] * len(indices)):
+    cv_grid = []
+    for x in indices:
+        adding = VOWELS if word[x] in VOWELS else CONSONANTS
+        adding = adding - {word[x]}
+        cv_grid.append(adding)
+    for bundle in product(*cv_grid):
         pw = list(word)
         for idx, lett in zip(indices, bundle):
             pw[idx] = lett
@@ -135,6 +149,7 @@ def transposition(words, reference_corpus, constraint=2, n=1, k=10):
         combs = combinations(range(1, len(w)-1), 2)
         combs = [(x, y) for x, y in combs if abs(x - y) <= constraint]
         for c in combinations(combs, n):
+            # We need to have unique combinations
             if len(set(chain(*c))) != n * 2:
                 continue
             pw = list(w)
