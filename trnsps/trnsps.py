@@ -19,12 +19,12 @@ def generate_bigram_counts(words, n=2):
     for w in words:
         grams.update(ngrams(w, n))
 
-    return grams
+    return Counter({k: np.log10(v) for k, v in grams.items()})
 
 
 def mean_bigram_freq(word, gram_freq):
     """Calculate the mean bigram frequency."""
-    return np.log10(np.sum([gram_freq[g] for g in ngrams(word, 2)]))
+    return np.mean([gram_freq[g] for g in ngrams(word, 2)])
 
 
 def ngrams(x, n):
