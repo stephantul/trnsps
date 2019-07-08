@@ -66,7 +66,24 @@ def _sub_subloop(word, indices, reference_corpus):
 
 
 def substitution(words, reference_corpus, n=1, k=10):
-    """Generate substitutions"""
+    """
+    Generate deletions.
+
+    Parameters
+    ----------
+    words : list of str
+        The words for which to generate substitutions.
+    reference_corpus : list of str
+        The reference corpus to use as background knowledge
+    n : int
+        The number of substitutions to apply to each word.
+    k : int
+        The number of candidates to return.
+
+    Returns : substitutions
+        the substitution neighbors of the words in wordlist.
+
+    """
     lengths = np.array([len(w) for w in words])
     assert np.all(lengths > 3)
 
@@ -93,6 +110,8 @@ def deletion(words, reference_corpus, n=1, k=10):
         The reference corpus to use as background knowledge
     n : int
         The number of deletions to apply to each word.
+    k : int
+        The number of candidates to return.
 
     Returns : deletions
         the deletion neighbors of the words in wordlist.
@@ -131,6 +150,8 @@ def transposition(words, reference_corpus, constraint=2, n=1, k=10):
         The maximum number of intervening letters between two letters.
     n : int
         The number of transposition operations to apply to each word.
+    k : int
+        The number of candidates to return.
 
     Returns
     -------
