@@ -1,5 +1,6 @@
 """Generate transposition, deletion, and substitution primes."""
 import numpy as np
+import unicodedata
 
 from collections import Counter
 from itertools import combinations, chain
@@ -9,6 +10,13 @@ from itertools import product
 
 VOWELS = {"a", "e", "i", "o", "u", "y", "j"}
 CONSONANTS = set(ascii_lowercase) - VOWELS
+
+
+def strip_accents(s):
+    """Strip accents from a unicode string."""
+    # FROM: https://stackoverflow.com/questions/517923/what-is-the-best-way-to-remove-accents-in-a-python-unicode-string # noqa
+    return ''.join(c for c in unicodedata.normalize('NFD', s)
+                   if unicodedata.category(c) != 'Mn')
 
 
 def generate_bigram_counts(words, n=2):
@@ -24,7 +32,7 @@ def generate_bigram_counts(words, n=2):
 
 def mean_bigram_freq(word, gram_freq):
     """Calculate the mean bigram frequency."""
-    return np.mean([gram_freq[g] for g in ngrams(word, 2)])
+    return sum([gram_freq[g] for g in ngrams(word, 2)]) / (len(word) - 1)
 
 
 def ngrams(x, n):
@@ -38,22 +46,29 @@ def find_diffs(x, y):
     return [idx for idx, (x, y) in enumerate(zip(x, y)) if x != y]
 
 
-def specific_substitution(word, reference_corpus, indices, k=10):
+def specific_substitution(words, reference_corpus, indices, k=10):
     """Generate substitutions for specific positions."""
+    reference_corpus = set(reference_corpus)
     grams = generate_bigram_counts(reference_corpus)
-    base = mean_bigram_freq(word, grams)
-    res = {}
-    for pw in _sub_subloop(word, indices, reference_corpus):
-        f = mean_bigram_freq(pw, grams)
-        res[pw] = abs(f - base)
-    return res
+    vocab = set(chain.from_iterable(reference_corpus))
+    res = []
+    for w, i in zip(words, indices):
+        base = mean_bigram_freq(w, grams)
+        res = {}
+        for pw in _sub_subloop(w, i, reference_corpus, vocab):
+            f = mean_bigram_freq(pw, grams)
+            res[pw] = abs(f - base)
+
+        yield w, list(sorted(res.items(), key=lambda x: x[1]))[:k]
 
 
-def _sub_subloop(word, indices, reference_corpus):
+def _sub_subloop(word, indices, reference_corpus, vocab):
     cv_grid = []
+    vocab = vocab - set(word)
+    vow = [x for x in vocab if strip_accents(x) in VOWELS]
+    cons = list(vocab - set(vow))
     for x in indices:
-        adding = VOWELS if word[x] in VOWELS else CONSONANTS
-        adding = adding - {word[x]}
+        adding = vow if word[x] in vow else cons
         cv_grid.append(adding)
     for bundle in product(*cv_grid):
         pw = list(word)
@@ -86,7 +101,7 @@ def substitution(words, reference_corpus, n=1, k=10):
     """
     lengths = np.array([len(w) for w in words])
     assert np.all(lengths > 3)
-
+    reference_corpus = set(reference_corpus)
     grams = generate_bigram_counts(reference_corpus)
     for w in words:
         base = mean_bigram_freq(w, grams)
@@ -95,7 +110,7 @@ def substitution(words, reference_corpus, n=1, k=10):
         for indices in combinations(range(1, len(w)-1), n):
             res.update({w: abs(mean_bigram_freq(w, grams) - base)
                         for w in _sub_subloop(w, indices, reference_corpus)})
-        yield w, sorted(res.items(), key=lambda x: x[1])[:k]
+        yield w, list(sorted(res.items(), key=lambda x: x[1]))[:k]
 
 
 def deletion(words, reference_corpus, n=1, k=10):
@@ -133,7 +148,7 @@ def deletion(words, reference_corpus, n=1, k=10):
                 continue
             res[pw] = abs(mean_bigram_freq(pw, grams) - base)
 
-        yield w, sorted(res.items(), key=lambda x: x[1])[:k]
+        yield w, list(sorted(res.items(), key=lambda x: x[1]))[:k]
 
 
 def transposition(words, reference_corpus, constraint=2, n=1, k=10):
@@ -181,4 +196,4 @@ def transposition(words, reference_corpus, constraint=2, n=1, k=10):
                 continue
             res[pw] = abs(mean_bigram_freq(pw, grams) - base)
 
-        yield w, sorted(res.items(), key=lambda x: x[1])[:k]
+        yield w, list(sorted(res.items(), key=lambda x: x[1]))[:k]
