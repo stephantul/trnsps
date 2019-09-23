@@ -68,7 +68,7 @@ def _sub_subloop(word, indices, reference_corpus, vocab):
     vow = [x for x in vocab if strip_accents(x) in VOWELS]
     cons = list(vocab - set(vow))
     for x in indices:
-        adding = vow if word[x] in vow else cons
+        adding = vow if word[x] in VOWELS else cons
         cv_grid.append(adding)
     for bundle in product(*cv_grid):
         pw = list(word)
@@ -103,13 +103,17 @@ def substitution(words, reference_corpus, n=1, k=10):
     assert np.all(lengths > 3)
     reference_corpus = set(reference_corpus)
     grams = generate_bigram_counts(reference_corpus)
+    vocab = set(chain.from_iterable(reference_corpus))
     for w in words:
         base = mean_bigram_freq(w, grams)
         # Generate all possible transpositions.
         res = {}
         for indices in combinations(range(1, len(w)-1), n):
             res.update({w: abs(mean_bigram_freq(w, grams) - base)
-                        for w in _sub_subloop(w, indices, reference_corpus)})
+                        for w in _sub_subloop(w,
+                                              indices,
+                                              reference_corpus,
+                                              vocab)})
         yield w, list(sorted(res.items(), key=lambda x: x[1]))[:k]
 
 
