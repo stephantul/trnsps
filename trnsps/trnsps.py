@@ -42,11 +42,10 @@ class Trnsps(object):
 
         for w in words:
             grams.update(self.ngrams(w, n))
-
         if self.strategy == "log":
-            grams = {k: np.log10(v) for k, v in grams.items()}
+            grams = Counter({k: np.log10(v) for k, v in grams.items()})
 
-        return Counter(grams)
+        return grams
 
     def mean_bigram_freq(self, word):
         """Calculate the mean bigram frequency."""
