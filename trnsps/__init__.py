@@ -1,10 +1,4 @@
-from .trnsps import (transposition,
-                     deletion,
-                     substitution,
-                     specific_substitution)
+from .trnsps import Trnsps
 
 
-__all__ = ["transposition",
-           "deletion",
-           "substitution",
-           "specific_substitution"]
+__all__ = ["Trnsps"]
