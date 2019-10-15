@@ -164,7 +164,7 @@ class Trnsps(object):
         assert np.all(lengths > 3)
         assert all([not set(x) - LETTERS for x in words])
         for w in words:
-            freq = self.position_ngram_freq(w)
+            freq = self.mean_bigram_freq(w)
             # Generate all possible transpositions.
             res = {}
             for indices in combinations(range(1, len(w)-1), n):
