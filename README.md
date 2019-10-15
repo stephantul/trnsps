@@ -13,10 +13,11 @@ This is because there is a wealth of psycholinguistic evidence that changing the
 # Example
 
 ```python
-from trnsps import transposition
+from trnsps import Trnsps
 
 my_corpus = ["godless", "sodless", "respondent", "stockless", "miles"]
-result = list(transposition(["godless"], my_corpus))
+t = Trnsps(my_corpus)
+result = list(t.transposition(my_corpus))
 
 ```
 
