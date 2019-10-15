@@ -33,7 +33,6 @@ class Trnsps(object):
         self.vocab = set(chain(*reference_corpus))
         self.vowels = VOWELS
         self.consonants = set(ascii_lowercase) - VOWELS
-        self._word_freq = {}
 
     def generate_bigram_counts(self, words, n=2):
         """Generate counts of bigrams."""
@@ -69,47 +68,16 @@ class Trnsps(object):
 
     @staticmethod
     def ngrams_position(word, indices):
+        """Get bigrams from a specific position in a word."""
         a = []
         for x in indices:
             a.extend([word[x-1:x+1], word[x-2:x]])
         return a
 
     def position_ngram_freq(self, word, indices):
+        """Get the frequency of bigrams at a specific position."""
         return sum([self.bigrams[x] for x
                     in self.ngrams_position(word, indices)])
-
-    def specific_substitution(self,
-                              words,
-                              indices,
-                              k=10):
-        """Generate substitutions for specific positions."""
-        assert all([not set(x) - LETTERS for x in words])
-        assert len(words) == len(indices)
-
-        for w, i in zip(words, indices):
-
-            freq = self.position_ngram_freq(w, i)
-            res = {}
-            for new_word in self._sub_subloop(w, i):
-                new_freq = self.position_ngram_freq(new_word, i)
-                res[new_word] = abs(freq - new_freq)
-            yield w, sorted(res.items(), key=lambda x: x[1])[:k]
-
-    def _sub_subloop(self, word, indices):
-        cv_grid = []
-        lett_in_word = set(strip_accents(word))
-        vow = self.vowels - lett_in_word
-        cons = self.consonants - lett_in_word
-        cv_grid = [vow if word[x] in self.vowels else cons for x in indices]
-
-        for bundle in product(*cv_grid):
-            pw = list(word)
-            for idx, lett in zip(indices, bundle):
-                pw[idx] = lett
-            pw = "".join(pw)
-            if pw in self.reference_corpus or pw == word:
-                continue
-            yield pw
 
     def substitution(self, words, n=1, k=10):
         """
@@ -140,6 +108,40 @@ class Trnsps(object):
                     new_freq = self.position_ngram_freq(new_word, indices)
                     res[new_word] = abs(freq - new_freq)
             yield w, sorted(res.items(), key=lambda x: x[1])[:k]
+
+    def specific_substitution(self,
+                              words,
+                              indices,
+                              k=10):
+        """Generate substitutions for specific positions."""
+        assert all([not set(x) - LETTERS for x in words])
+        assert len(words) == len(indices)
+
+        for w, i in zip(words, indices):
+
+            freq = self.position_ngram_freq(w, i)
+            res = {}
+            for new_word in self._sub_subloop(w, i):
+                new_freq = self.position_ngram_freq(new_word, i)
+                res[new_word] = abs(freq - new_freq)
+            yield w, sorted(res.items(), key=lambda x: x[1])[:k]
+
+    def _sub_subloop(self, word, indices):
+        """Shared code between the specific and general substitution."""
+        cv_grid = []
+        lett_in_word = set(strip_accents(word))
+        vow = self.vowels - lett_in_word
+        cons = self.consonants - lett_in_word
+        cv_grid = [vow if word[x] in self.vowels else cons for x in indices]
+
+        for bundle in product(*cv_grid):
+            pw = list(word)
+            for idx, lett in zip(indices, bundle):
+                pw[idx] = lett
+            pw = "".join(pw)
+            if pw in self.reference_corpus or pw == word:
+                continue
+            yield pw
 
     def deletion(self, words, n=1, k=10):
         """
@@ -196,6 +198,7 @@ class Trnsps(object):
         -------
         transpositions : list of str
             The transpositions for the given words.
+
         """
         lengths = np.array([len(w) for w in words])
         assert np.all(lengths > 3)
