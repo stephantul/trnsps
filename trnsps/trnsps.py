@@ -179,7 +179,7 @@ class Trnsps(object):
 
             yield w, list(sorted(res.items(), key=lambda x: x[1]))[:k]
 
-    def transposition(self, words, constraint=2, n=1, k=10):
+    def transposition(self, words, min_c=0, max_c=2, n=1, k=10):
         """
         Generate transpositions.
 
@@ -209,7 +209,7 @@ class Trnsps(object):
             # Generate all possible transpositions.
             res = {}
             combs = combinations(range(1, len(w)-1), 2)
-            combs = [(x, y) for x, y in combs if abs(x - y) <= constraint]
+            combs = [(x, y) for x, y in combs if min_c < abs(x - y) <= max_c]
             for c in combinations(combs, n):
                 # We need to have unique combinations
                 if len(set(chain(*c))) != n * 2:
@@ -224,9 +224,9 @@ class Trnsps(object):
 
             yield w, list(sorted(res.items(), key=lambda x: x[1]))[:k]
 
-    def transposition_substitution(self, words, constraint=2, n=1):
+    def transposition_substitution(self, words, min_c=1, max_c=2, n=1):
         """First generate transpositions, then substitute"""
-        t = self.transposition(words, constraint, n, k=1)
+        t = self.transposition(words, min_c, max_c, n, k=1)
         t = [(x, y[0][0]) for x, y in t if y]
         indices = [self.find_diffs(x, y) for x, y in t]
 
