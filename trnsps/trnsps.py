@@ -153,7 +153,7 @@ class Trnsps(object):
 
         idxgen = partial(index_generator, min_c=min_c, max_c=max_c)
         indices = (idxgen(len(w), n) for w in words)
-        return self.generic_func(words, indices, sub_trans, k=k)
+        return self._generic_func(words, indices, sub_trans, k=k)
 
     def substitution(self, words, indices=None, n=1, k=10):
         """
@@ -195,7 +195,7 @@ class Trnsps(object):
 
         if indices is None:
             indices = (index_generator(len(w), n) for w in words)
-        return self.generic_func(words, indices, sub_subs, k=k)
+        return self._generic_func(words, indices, sub_subs, k=k)
 
     def specific_substitution(self, words, indices, k=10):
         """
@@ -247,7 +247,7 @@ class Trnsps(object):
                             if idx not in indices])]
 
         indices = (index_generator(len(w), n) for w in words)
-        return self.generic_func(words, indices, func, k=k)
+        return self._generic_func(words, indices, func, k=k)
 
     def transposition_substitution(self, words, min_c=1, max_c=2, n=1):
         """First generate transpositions, then substitute"""
