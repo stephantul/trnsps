@@ -34,8 +34,8 @@ class Trnsps(object):
         self.consonants = set(ascii_lowercase) - VOWELS
         self.allow_outer = allow_outer
         self.offset = 0 if allow_outer else 1
-        # The minimum length for any transformation is 1.
-        self.length_limit = 3 if not self.allow_outer else 2
+        # The minimum length for any transformation is 2.
+        self.length_limit = 3 if not self.allow_outer else 1
 
     def generate_ngram_counts(self, words):
         """Generate counts of bigrams."""
