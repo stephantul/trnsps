@@ -34,6 +34,8 @@ class Trnsps(object):
         self.consonants = set(ascii_lowercase) - VOWELS
         self.allow_outer = allow_outer
         self.offset = 0 if allow_outer else 1
+        # The minimum length for any transformation is 1.
+        self.length_limit = 3 if not self.allow_outer else 2
 
     def generate_ngram_counts(self, words):
         """Generate counts of bigrams."""
@@ -102,7 +104,7 @@ class Trnsps(object):
         """
         lengths = np.array([len(w) for w in words])
         assert all([not set(strip_accents(x)) - LETTERS for x in words])
-        assert np.all(lengths > 3)
+        assert np.all(lengths > self.length_limit)
         for w, index in zip(words, indices):
             res = {}
             freq = self.mean_ngram_freq(w)
