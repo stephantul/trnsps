@@ -3,9 +3,9 @@ import numpy as np
 import unicodedata
 
 from collections import Counter
-from itertools import combinations, chain
+from itertools import combinations, chain, product
 from string import ascii_lowercase
-from itertools import product
+from functools import partial
 
 
 LETTERS = set(ascii_lowercase)
@@ -22,7 +22,7 @@ def strip_accents(s):
 
 class Trnsps(object):
 
-    def __init__(self, reference_corpus, strategy="log"):
+    def __init__(self, reference_corpus, strategy="log", allow_outer=False):
         """Reference corpus."""
         if not all([not set(strip_accents(x)) - LETTERS
                     for x in reference_corpus]):
@@ -33,6 +33,7 @@ class Trnsps(object):
         self.vocab = set(chain(*reference_corpus))
         self.vowels = VOWELS
         self.consonants = set(ascii_lowercase) - VOWELS
+        self.allow_outer = allow_outer
 
     def generate_bigram_counts(self, words, n=2):
         """Generate counts of bigrams."""
@@ -66,20 +67,40 @@ class Trnsps(object):
             raise ValueError(f"len({x}) != len({y})")
         return [idx for idx, (x, y) in enumerate(zip(x, y)) if x != y]
 
-    @staticmethod
-    def ngrams_position(word, indices):
-        """Get bigrams from a specific position in a word."""
-        a = []
-        for x in indices:
-            a.extend([word[x-1:x+1], word[x-2:x]])
-        return a
+    def generic_func(self, words, indices, function, n=1, k=10):
+        lengths = np.array([len(w) for w in words])
+        assert all([not set(x) - LETTERS for x in words])
+        assert np.all(lengths > 3)
+        for w, index in zip(words, indices):
+            res = {}
+            freq = self.mean_bigram_freq(w)
+            for i in index:
+                for new_w in function(w, i):
+                    if new_w == w or new_w in self.reference_corpus:
+                        continue
+                    new_freq = self.mean_bigram_freq(new_w)
+                    res[new_w] = abs(freq - new_freq)
+            return w, sorted(res.items(), key=lambda x: x[1])[:k]
 
-    def position_ngram_freq(self, word, indices):
-        """Get the frequency of bigrams at a specific position."""
-        return sum([self.bigrams[x] for x
-                    in self.ngrams_position(word, indices)])
+    def transposition(self, words, min_c=0, max_c=2, n=1, k=10):
 
-    def substitution(self, words, n=1, k=10):
+        def index_generator(w_len, n, min_c, max_c):
+            combs = combinations(range(1, w_len-1), 2)
+            combs = [(x, y) for x, y in combs if min_c < abs(x - y) <= max_c]
+            return (x for x in combinations(combs, n)
+                    if len(set(chain(*x))) == n * 2)
+
+        def sub_trans(word, indices):
+            word = list(word)
+            for x, y in indices:
+                word[x], word[y] = word[y], word[x]
+            return ["".join(word)]
+
+        idxgen = partial(index_generator, min_c=min_c, max_c=max_c)
+        indices = (idxgen(len(w), n) for w in words)
+        return self.generic_func(words, indices, sub_trans, n=n, k=k)
+
+    def substitution(self, words, indices=None, n=1, k=10):
         """
         Generate substitutions.
 
@@ -93,55 +114,37 @@ class Trnsps(object):
             The number of candidates to return.
 
         Returns : substitutions
-            the substitution neighbors of the words in wordlist.
+            the substitution neighbors of the words in words.
 
         """
-        lengths = np.array([len(w) for w in words])
-        assert all([not set(x) - LETTERS for x in words])
-        assert np.all(lengths > 3)
-        for w in words:
-            # Generate all possible transpositions.
-            res = {}
-            for indices in combinations(range(1, len(w)-1), n):
-                freq = self.position_ngram_freq(w, indices)
-                for new_word in self._sub_subloop(w, indices):
-                    new_freq = self.position_ngram_freq(new_word, indices)
-                    res[new_word] = abs(freq - new_freq)
-            yield w, sorted(res.items(), key=lambda x: x[1])[:k]
+        def index_generator(w_len, n):
+            return combinations(range(1, w_len-1), n)
 
-    def specific_substitution(self,
-                              words,
-                              indices,
-                              k=10):
-        """Generate substitutions for specific positions."""
-        assert all([not set(x) - LETTERS for x in words])
+        def sub_subs(word, indices):
+            word = list(word)
+            letters = set(word)
+
+            allowed_vowels = VOWELS - letters
+            allowed_consonants = CONSONANTS - letters
+            classes = []
+            for idx in indices:
+                if strip_accents(word[idx]) in VOWELS:
+                    classes.append(allowed_vowels)
+                else:
+                    classes.append(allowed_consonants)
+            for bundle in product(*classes):
+                w = list(word)
+                for idx, lett in zip(indices, bundle):
+                    w[idx] = lett
+                yield "".join(w)
+
+        if indices is None:
+            indices = (index_generator(len(w), n) for w in words)
+        return self.generic_func(words, indices, sub_subs, n=n, k=k)
+
+    def specific_substitution(self, words, indices, k=10):
         assert len(words) == len(indices)
-
-        for w, i in zip(words, indices):
-
-            freq = self.position_ngram_freq(w, i)
-            res = {}
-            for new_word in self._sub_subloop(w, i):
-                new_freq = self.position_ngram_freq(new_word, i)
-                res[new_word] = abs(freq - new_freq)
-            yield w, sorted(res.items(), key=lambda x: x[1])[:k]
-
-    def _sub_subloop(self, word, indices):
-        """Shared code between the specific and general substitution."""
-        cv_grid = []
-        lett_in_word = set(strip_accents(word))
-        vow = self.vowels - lett_in_word
-        cons = self.consonants - lett_in_word
-        cv_grid = [vow if word[x] in self.vowels else cons for x in indices]
-
-        for bundle in product(*cv_grid):
-            pw = list(word)
-            for idx, lett in zip(indices, bundle):
-                pw[idx] = lett
-            pw = "".join(pw)
-            if pw in self.reference_corpus or pw == word:
-                continue
-            yield pw
+        return self.substitution(words, indices, 1, k)
 
     def deletion(self, words, n=1, k=10):
         """
@@ -160,69 +163,15 @@ class Trnsps(object):
             the deletion neighbors of the words in wordlist.
 
         """
-        lengths = np.array([len(w) for w in words])
-        assert np.all(lengths > 3)
-        assert all([not set(x) - LETTERS for x in words])
-        for w in words:
-            freq = self.mean_bigram_freq(w)
-            # Generate all possible transpositions.
-            res = {}
-            for indices in combinations(range(1, len(w)-1), n):
-                pw = list(w)
-                indices = set(indices)
-                pw = "".join([x for idx, x in enumerate(pw)
-                              if idx not in indices])
-                if pw == w or pw in self.reference_corpus:
-                    continue
-                new_freq = self.position_ngram_freq(pw, indices)
-                res[pw] = abs(new_freq - freq)
+        def index_generator(w_len, n):
+            return combinations(range(1, w_len-1), n)
 
-            yield w, list(sorted(res.items(), key=lambda x: x[1]))[:k]
+        def func(w, indices):
+            return ["".join([x for idx, x in enumerate(w)
+                            if idx not in indices])]
 
-    def transposition(self, words, min_c=0, max_c=2, n=1, k=10):
-        """
-        Generate transpositions.
-
-        Parameters
-        ----------
-        words : list of str
-            The words for which to generate transpositions.
-        constraint : int
-            The maximum number of intervening letters between two letters.
-        n : int
-            The number of transposition operations to apply to each word.
-        k : int
-            The number of candidates to return.
-
-        Returns
-        -------
-        transpositions : list of str
-            The transpositions for the given words.
-
-        """
-        lengths = np.array([len(w) for w in words])
-        assert np.all(lengths > 3)
-        assert all([not set(x) - LETTERS for x in words])
-
-        for w in words:
-            base = self.mean_bigram_freq(w)
-            # Generate all possible transpositions.
-            res = {}
-            combs = combinations(range(1, len(w)-1), 2)
-            combs = [(x, y) for x, y in combs if min_c < abs(x - y) <= max_c]
-            for c in combinations(combs, n):
-                # We need to have unique combinations
-                if len(set(chain(*c))) != n * 2:
-                    continue
-                pw = list(w)
-                for x, y in c:
-                    pw[x], pw[y] = pw[y], pw[x]
-                pw = "".join(pw)
-                if pw == w or pw in self.reference_corpus:
-                    continue
-                res[pw] = abs(self.mean_bigram_freq(pw) - base)
-
-            yield w, list(sorted(res.items(), key=lambda x: x[1]))[:k]
+        indices = (index_generator(len(w), n) for w in words)
+        return self.generic_func(words, indices, func, n=n, k=k)
 
     def transposition_substitution(self, words, min_c=1, max_c=2, n=1):
         """First generate transpositions, then substitute"""
