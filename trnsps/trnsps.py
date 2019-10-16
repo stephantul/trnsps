@@ -5,7 +5,6 @@ import unicodedata
 from collections import Counter
 from itertools import combinations, chain, product
 from string import ascii_lowercase
-from functools import partial
 
 
 LETTERS = set(ascii_lowercase)
@@ -33,9 +32,8 @@ class Trnsps(object):
         self.vocab = set(chain(*reference_corpus))
         self.vowels = VOWELS
         self.consonants = set(ascii_lowercase) - VOWELS
-        if allow_outer:
-            raise NotImplementedError("Outer transpositions not supported")
         self.allow_outer = allow_outer
+        self.offset = 0 if allow_outer else 1
 
     def generate_ngram_counts(self, words):
         """Generate counts of bigrams."""
@@ -139,8 +137,8 @@ class Trnsps(object):
         """
         assert min_c >= 0 and min_c < max_c
 
-        def index_generator(w_len, n, min_c, max_c):
-            combs = combinations(range(1, w_len-1), 2)
+        def index_generator(w_len, n, min_c, max_c, offset):
+            combs = combinations(range(offset, w_len-offset), 2)
             combs = [(x, y) for x, y in combs if min_c < abs(x - y) <= max_c]
             return (x for x in combinations(combs, n)
                     if len(set(chain(*x))) == n * 2)
@@ -151,8 +149,8 @@ class Trnsps(object):
                 word[x], word[y] = word[y], word[x]
             return ["".join(word)]
 
-        idxgen = partial(index_generator, min_c=min_c, max_c=max_c)
-        indices = (idxgen(len(w), n) for w in words)
+        indices = (index_generator(len(w), n, min_c, max_c, self.offset)
+                   for w in words)
         return self._generic_func(words, indices, sub_trans, k=k)
 
     def substitution(self, words, indices=None, n=1, k=10):
@@ -172,8 +170,8 @@ class Trnsps(object):
             the substitution neighbors of the words in words.
 
         """
-        def index_generator(w_len, n):
-            return combinations(range(1, w_len-1), n)
+        def index_generator(w_len, n, offset):
+            return combinations(range(offset, w_len-offset), n)
 
         def sub_subs(w, indices):
             letters = set(w)
@@ -193,7 +191,7 @@ class Trnsps(object):
                 yield "".join(w_)
 
         if indices is None:
-            indices = (index_generator(len(w), n) for w in words)
+            indices = (index_generator(len(w), n, self.offset) for w in words)
         return self._generic_func(words, indices, sub_subs, k=k)
 
     def specific_substitution(self, words, indices, k=10):
@@ -238,14 +236,14 @@ class Trnsps(object):
             The deletion neighbors of the words
 
         """
-        def index_generator(w_len, n):
-            return combinations(range(1, w_len-1), n)
+        def index_generator(w_len, n, offset):
+            return combinations(range(offset, w_len-offset), n)
 
         def func(w, indices):
             return ["".join([x for idx, x in enumerate(w)
                             if idx not in indices])]
 
-        indices = (index_generator(len(w), n) for w in words)
+        indices = (index_generator(len(w), n, self.offset) for w in words)
         return self._generic_func(words, indices, func, k=k)
 
     def insertion(self, words, n=1, k=10):
@@ -267,8 +265,8 @@ class Trnsps(object):
             The insertion neighbors of the words
 
         """
-        def index_generator(w_len, n):
-            return combinations(range(1, w_len-1), n)
+        def index_generator(w_len, n, offset):
+            return combinations(range(offset, w_len-offset), n)
 
         def func(w, indices):
             # Make sure they are sorted, otherwise insertion fails.
@@ -289,7 +287,7 @@ class Trnsps(object):
                     new_w.append(fragments[-1])
                 yield "".join(new_w)
 
-        indices = (index_generator(len(w), n) for w in words)
+        indices = (index_generator(len(w), n, self.offset) for w in words)
         return self._generic_func(words, indices, func, k=k)
 
     def transposition_substitution(self, words, min_c=1, max_c=2, n=1):
