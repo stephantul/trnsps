@@ -50,7 +50,7 @@ class Trnsps(object):
     def mean_bigram_freq(self, word):
         """Calculate the mean bigram frequency."""
         grams = list(self.ngrams(word, 2))
-        return sum([self.bigrams[g] for g in grams]) / len(grams)
+        return sum([self.bigrams[g] for g in grams])
 
     @staticmethod
     def ngrams(x, n):
