@@ -80,7 +80,7 @@ class Trnsps(object):
                         continue
                     new_freq = self.mean_bigram_freq(new_w)
                     res[new_w] = abs(freq - new_freq)
-            return w, sorted(res.items(), key=lambda x: x[1])[:k]
+            yield w, sorted(res.items(), key=lambda x: x[1])[:k]
 
     def transposition(self, words, min_c=0, max_c=2, n=1, k=10):
 
