@@ -53,8 +53,8 @@ class Trnsps(object):
     @staticmethod
     def ngrams(x, n):
         """Return all character ngrams without padding."""
-        if len(x) < n:
-            raise ValueError(f"len({x}) < n. Raise your n, or remove word")
+        _mask = "#" * (n-1)
+        x = f"{_mask}{x}{_mask}"
         for idx in range(0, len(x)-(n-1)):
             yield x[idx:idx+n]
 
