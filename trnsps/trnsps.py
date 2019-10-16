@@ -27,6 +27,7 @@ class Trnsps(object):
         if not all([not set(strip_accents(x)) - LETTERS
                     for x in reference_corpus]):
             raise ValueError("Some words were not alphabetical.")
+        self.n = n
         self.reference_corpus = set(reference_corpus)
         self.bigrams = self.generate_ngram_counts(self.reference_corpus)
         self.vocab = set(chain(*reference_corpus))
@@ -35,7 +36,6 @@ class Trnsps(object):
         if allow_outer:
             raise NotImplementedError("Outer transpositions not supported")
         self.allow_outer = allow_outer
-        self.n = n
 
     def generate_ngram_counts(self, words):
         """Generate counts of bigrams."""
