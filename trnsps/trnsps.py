@@ -28,7 +28,6 @@ class Trnsps(object):
                     for x in reference_corpus]):
             raise ValueError("Some words were not alphabetical.")
         self.reference_corpus = set(reference_corpus)
-        self.strategy = strategy
         self.bigrams = self.generate_bigram_counts(self.reference_corpus)
         self.vocab = set(chain(*reference_corpus))
         self.vowels = VOWELS
@@ -42,8 +41,6 @@ class Trnsps(object):
 
         for w in words:
             grams.update(self.ngrams(w, n))
-        if self.strategy == "log":
-            grams = Counter({k: np.log10(v) for k, v in grams.items()})
 
         return grams
 
