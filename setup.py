@@ -5,7 +5,7 @@ from setuptools import find_packages
 
 
 setup(name='trnsps',
-      version="1.0.0",
+      version="2.0.1",
       description='generate transpositions, deletions and insertions.',
       author='Stéphan Tulkens',
       author_email='stephan.tulkens@uantwerpen.be',
