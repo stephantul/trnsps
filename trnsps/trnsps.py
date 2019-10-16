@@ -177,7 +177,7 @@ class Trnsps(object):
         """First generate transpositions, then substitute"""
         t = self.transposition(words, min_c, max_c, n, k=1)
         t = [(x, y[0][0]) for x, y in t if y]
-        indices = [self.find_diffs(x, y) for x, y in t]
+        indices = [(self.find_diffs(x, y),) for x, y in t]
 
         words, transpositions = zip(*t)
         d = tuple(self.specific_substitution(words, indices))
