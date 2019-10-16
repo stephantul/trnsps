@@ -175,23 +175,22 @@ class Trnsps(object):
         def index_generator(w_len, n):
             return combinations(range(1, w_len-1), n)
 
-        def sub_subs(word, indices):
-            word = list(word)
-            letters = set(word)
+        def sub_subs(w, indices):
+            letters = set(w)
 
             allowed_vowels = VOWELS - letters
             allowed_consonants = CONSONANTS - letters
             classes = []
             for idx in indices:
-                if strip_accents(word[idx]) in VOWELS:
+                if strip_accents(w[idx]) in VOWELS:
                     classes.append(allowed_vowels)
                 else:
                     classes.append(allowed_consonants)
             for bundle in product(*classes):
-                w = list(word)
+                w_ = list(w)
                 for idx, lett in zip(indices, bundle):
-                    w[idx] = lett
-                yield "".join(w)
+                    w_[idx] = lett
+                yield "".join(w_)
 
         if indices is None:
             indices = (index_generator(len(w), n) for w in words)
@@ -245,6 +244,49 @@ class Trnsps(object):
         def func(w, indices):
             return ["".join([x for idx, x in enumerate(w)
                             if idx not in indices])]
+
+        indices = (index_generator(len(w), n) for w in words)
+        return self._generic_func(words, indices, func, k=k)
+
+    def insertion(self, words, n=1, k=10):
+        """
+        Generate insertions.
+
+        Parameters
+        ----------
+        words : list of str
+            The words for which to generate insertions.
+        n : int
+            The number of insertions to apply to each word.
+        k : int
+            The number of candidates to return.
+
+        Returns
+        -------
+        deletions : list
+            The insertion neighbors of the words
+
+        """
+        def index_generator(w_len, n):
+            return combinations(range(1, w_len-1), n)
+
+        def func(w, indices):
+            word = list(w)
+            letters = set(w)
+
+            allowed_vowels = VOWELS - letters
+            allowed_consonants = CONSONANTS - letters
+            classes = []
+            for idx in indices:
+                if strip_accents(word[idx]) in VOWELS:
+                    classes.append(allowed_vowels)
+                else:
+                    classes.append(allowed_consonants)
+            for bundle in product(*classes):
+                w = list(word)
+                for idx, lett in zip(indices, bundle):
+                    w[idx] = lett
+                yield "".join(w)
 
         indices = (index_generator(len(w), n) for w in words)
         return self._generic_func(words, indices, func, k=k)
