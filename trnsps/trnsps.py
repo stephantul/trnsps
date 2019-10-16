@@ -67,7 +67,41 @@ class Trnsps(object):
             raise ValueError(f"len({x}) != len({y})")
         return [idx for idx, (x, y) in enumerate(zip(x, y)) if x != y]
 
-    def generic_func(self, words, indices, function, n=1, k=10):
+    def _generic_func(self, words, indices, function, k=10):
+        """
+        A generic function that does something to words.
+
+        This function takes as input a set of words, a set of indices, and
+        a function that takes as input a set of indices and a word.
+
+        This transformation is then scored by its mean bigram frequency.
+
+        Parameters
+        ----------
+        words : list of str
+            A list of strings representing the words.
+        indices : list of list of integers
+            A list of doubly or triply nested list of integers, representing:
+            for each word, the possible transformations for that word.
+            Whether the list is doubly or triply nested depends on the
+            transformation: some transformations require different sets of
+            indices.
+        function : callable
+            The function is always a function that takes as input a word and
+            a set of indices or an index, depending on the task.
+            The function returns a string which is the transformed word.
+        k : int, default 10
+            The number of items to return
+
+        Returns
+        -------
+        items : tuple
+            A tuple consisting of the word and its transformations.
+            Transformations are represented as a string and a score, where the
+            score is the absolute difference in mean bigram frequency between
+            the original word and its transformation.
+
+        """
         lengths = np.array([len(w) for w in words])
         assert all([not set(x) - LETTERS for x in words])
         assert np.all(lengths > 3)
@@ -83,6 +117,27 @@ class Trnsps(object):
             yield w, sorted(res.items(), key=lambda x: x[1])[:k]
 
     def transposition(self, words, min_c=0, max_c=2, n=1, k=10):
+        """
+        Generate substitutions.
+
+        Parameters
+        ----------
+        words : list of str
+            The words for which to generate substitutions.
+        min_c : int, optional, default 0
+            The minimum distance in letters between transpositions
+        max_c : int, optional, default 2
+            The maximum distance in letters between transpositions
+        n : int
+            The number of substitutions to apply to each word.
+        k : int
+            The number of candidates to return.
+
+        Returns : substitutions
+            the substitution neighbors of the words in words.
+
+        """
+        assert min_c >= 0 and min_c < max_c
 
         def index_generator(w_len, n, min_c, max_c):
             combs = combinations(range(1, w_len-1), 2)
@@ -98,7 +153,7 @@ class Trnsps(object):
 
         idxgen = partial(index_generator, min_c=min_c, max_c=max_c)
         indices = (idxgen(len(w), n) for w in words)
-        return self.generic_func(words, indices, sub_trans, n=n, k=k)
+        return self.generic_func(words, indices, sub_trans, k=k)
 
     def substitution(self, words, indices=None, n=1, k=10):
         """
@@ -140,9 +195,28 @@ class Trnsps(object):
 
         if indices is None:
             indices = (index_generator(len(w), n) for w in words)
-        return self.generic_func(words, indices, sub_subs, n=n, k=k)
+        return self.generic_func(words, indices, sub_subs, k=k)
 
     def specific_substitution(self, words, indices, k=10):
+        """
+        Generate substitutions in specific positions.
+
+        Parameters
+        ----------
+        words : list of str
+            The words for which to generate deletions.
+        indices : list of indices
+            A list, the same length of words, which contains which indices
+            to substitute in that specific word.
+        k : int
+            The number of candidates to return.
+
+        Returns
+        -------
+        substitutions : list
+            the subtitutions neighbors of the words in wordlist.
+
+        """
         assert len(words) == len(indices)
         return self.substitution(words, indices, 1, k)
 
@@ -159,8 +233,10 @@ class Trnsps(object):
         k : int
             The number of candidates to return.
 
-        Returns : deletions
-            the deletion neighbors of the words in wordlist.
+        Returns
+        -------
+        deletions : list
+            The deletion neighbors of the words
 
         """
         def index_generator(w_len, n):
@@ -171,7 +247,7 @@ class Trnsps(object):
                             if idx not in indices])]
 
         indices = (index_generator(len(w), n) for w in words)
-        return self.generic_func(words, indices, func, n=n, k=k)
+        return self.generic_func(words, indices, func, k=k)
 
     def transposition_substitution(self, words, min_c=1, max_c=2, n=1):
         """First generate transpositions, then substitute"""
