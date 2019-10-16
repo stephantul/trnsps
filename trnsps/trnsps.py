@@ -101,7 +101,7 @@ class Trnsps(object):
 
         """
         lengths = np.array([len(w) for w in words])
-        assert all([not set(x) - LETTERS for x in words])
+        assert all([not set(strip_accents(x)) - LETTERS for x in words])
         assert np.all(lengths > 3)
         for w, index in zip(words, indices):
             res = {}
