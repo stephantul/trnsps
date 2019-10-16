@@ -271,22 +271,23 @@ class Trnsps(object):
             return combinations(range(1, w_len-1), n)
 
         def func(w, indices):
-            word = list(w)
-            letters = set(w)
-
-            allowed_vowels = VOWELS - letters
-            allowed_consonants = CONSONANTS - letters
-            classes = []
-            for idx in indices:
-                if strip_accents(word[idx]) in VOWELS:
-                    classes.append(allowed_vowels)
-                else:
-                    classes.append(allowed_consonants)
-            for bundle in product(*classes):
-                w = list(word)
-                for idx, lett in zip(indices, bundle):
-                    w[idx] = lett
-                yield "".join(w)
+            # Make sure they are sorted, otherwise insertion fails.
+            indices = sorted(indices)
+            fragments = []
+            prev_idx = 0
+            lett = LETTERS - set(w)
+            for x in indices:
+                fragments.append(w[prev_idx:x])
+                prev_idx = x
+            if indices[-1] != len(w) - 1:
+                fragments.append(w[prev_idx:])
+            for bundle in product(*[lett] * len(indices)):
+                new_w = []
+                for f, l in zip(fragments, bundle):
+                    new_w.extend([f, l])
+                if indices[-1] != len(w) - 1:
+                    new_w.append(fragments[-1])
+                yield "".join(new_w)
 
         indices = (index_generator(len(w), n) for w in words)
         return self._generic_func(words, indices, func, k=k)
