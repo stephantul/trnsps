@@ -301,5 +301,5 @@ class Trnsps(object):
         words, transpositions = zip(*t)
         d = tuple(self.specific_substitution(words, indices))
         _, deletions = zip(*d)
-        deletions = [x[0][0] for x in deletions]
+        deletions = tuple([x[0][0] for x in deletions])
         return words, transpositions, deletions
