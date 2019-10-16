@@ -22,31 +22,34 @@ def strip_accents(s):
 
 class Trnsps(object):
 
-    def __init__(self, reference_corpus, strategy="log", allow_outer=False):
+    def __init__(self, reference_corpus, n=2, allow_outer=False):
         """Reference corpus."""
         if not all([not set(strip_accents(x)) - LETTERS
                     for x in reference_corpus]):
             raise ValueError("Some words were not alphabetical.")
         self.reference_corpus = set(reference_corpus)
-        self.bigrams = self.generate_bigram_counts(self.reference_corpus)
+        self.bigrams = self.generate_ngram_counts(self.reference_corpus)
         self.vocab = set(chain(*reference_corpus))
         self.vowels = VOWELS
         self.consonants = set(ascii_lowercase) - VOWELS
+        if allow_outer:
+            raise NotImplementedError("Outer transpositions not supported")
         self.allow_outer = allow_outer
+        self.n = n
 
-    def generate_bigram_counts(self, words, n=2):
+    def generate_ngram_counts(self, words):
         """Generate counts of bigrams."""
         words = set(words)
         grams = Counter()
 
         for w in words:
-            grams.update(self.ngrams(w, n))
+            grams.update(self.ngrams(w, self.n))
 
         return grams
 
-    def mean_bigram_freq(self, word):
+    def mean_ngram_freq(self, word):
         """Calculate the mean bigram frequency."""
-        grams = list(self.ngrams(word, 2))
+        grams = list(self.ngrams(word, self.n))
         return sum([self.bigrams[g] for g in grams]) / len(grams)
 
     @staticmethod
@@ -104,12 +107,12 @@ class Trnsps(object):
         assert np.all(lengths > 3)
         for w, index in zip(words, indices):
             res = {}
-            freq = self.mean_bigram_freq(w)
+            freq = self.mean_ngram_freq(w)
             for i in index:
                 for new_w in function(w, i):
                     if new_w == w or new_w in self.reference_corpus:
                         continue
-                    new_freq = self.mean_bigram_freq(new_w)
+                    new_freq = self.mean_ngram_freq(new_w)
                     res[new_w] = abs(freq - new_freq)
             yield w, sorted(res.items(), key=lambda x: x[1])[:k]
 
