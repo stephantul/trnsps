@@ -1,4 +1,6 @@
-from .trnsps import Trnsps
+from .trnsps import Trnsps, NGramScorer, NeighborhoodScorer
 
 
-__all__ = ["Trnsps"]
+__all__ = ["Trnsps",
+           "NGramScorer",
+           "NeighborhoodScorer"]
