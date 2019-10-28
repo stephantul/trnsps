@@ -5,6 +5,7 @@ import unicodedata
 from collections import Counter
 from itertools import combinations, chain, product
 from string import ascii_lowercase
+from old20 import old20
 
 
 LETTERS = set(ascii_lowercase)
@@ -19,26 +20,18 @@ def strip_accents(s):
                    if unicodedata.category(c) != 'Mn')
 
 
-class Trnsps(object):
+class NGramScorer(object):
 
-    def __init__(self, reference_corpus, n=2, allow_outer=False):
-        """Reference corpus."""
-        if not all([not set(strip_accents(x)) - LETTERS
-                    for x in reference_corpus]):
-            raise ValueError("Some words were not alphabetical.")
+    def __init__(self, n):
+        """An NGram Scorer."""
         self.n = n
-        self.reference_corpus = set(reference_corpus)
-        self.bigrams = self.generate_ngram_counts(self.reference_corpus)
-        self.vocab = set(chain(*reference_corpus))
-        self.vowels = VOWELS
-        self.consonants = set(ascii_lowercase) - VOWELS
-        self.allow_outer = allow_outer
-        self.offset = 0 if allow_outer else 1
-        # The minimum length for any transformation is 2.
-        self.length_limit = 3 if not self.allow_outer else 1
+
+    def fit(self, reference_corpus):
+        """Fit the scorer to a corpus."""
+        self.gram_dict = self.generate_ngram_counts(reference_corpus)
 
     def generate_ngram_counts(self, words):
-        """Generate counts of bigrams."""
+        """Generate counts of ngrams."""
         words = set(words)
         grams = Counter()
 
@@ -47,10 +40,10 @@ class Trnsps(object):
 
         return grams
 
-    def mean_ngram_freq(self, word):
+    def score(self, word):
         """Calculate the mean bigram frequency."""
         grams = list(self.ngrams(word, self.n))
-        return sum([self.bigrams[g] for g in grams]) / len(grams)
+        return sum([self.gram_dict[g] for g in grams]) / len(grams)
 
     @staticmethod
     def ngrams(x, n):
@@ -60,12 +53,57 @@ class Trnsps(object):
         for idx in range(0, len(x)-(n-1)):
             yield x[idx:idx+n]
 
+
+class NeighborhoodScorer(object):
+
+    def __init__(self, k):
+        """A neighborhood scorer."""
+        self.k = k
+
+    def fit(self, reference_corpus):
+        """Fit the scorer on a corpus."""
+        self.reference_corpus = reference_corpus
+
+    def score(self, word):
+        """Score the word on neighborhood."""
+        return old20([word], self.reference_corpus, n=self.k)[0] / self.k
+
+
+class Trnsps(object):
+
+    def __init__(self,
+                 reference_corpus,
+                 scorers,
+                 allow_outer=False):
+        """Reference corpus."""
+        if not all([not set(strip_accents(x)) - LETTERS
+                    for x in reference_corpus]):
+            raise ValueError("Some words were not alphabetical.")
+        if not isinstance(scorers, (list, tuple, set)):
+            scorers = (scorers,)
+        self.reference_corpus = set(reference_corpus)
+        self.vocab = set(chain(*reference_corpus))
+        self.vowels = VOWELS
+        self.consonants = set(ascii_lowercase) - VOWELS
+        self.allow_outer = allow_outer
+        self.offset = 0 if allow_outer else 1
+        # The minimum length for any transformation is 2.
+        self.length_limit = 3 if not self.allow_outer else 1
+        self.scorers = scorers
+        for scorer in self.scorers:
+            scorer.fit(self.reference_corpus)
+
     @staticmethod
     def find_diffs(x, y):
         """Find the differing indices of two words."""
         if len(x) != len(y):
             raise ValueError(f"len({x}) != len({y})")
         return [idx for idx, (x, y) in enumerate(zip(x, y)) if x != y]
+
+    def score(self, word):
+        """Give a score to a word."""
+        return np.array([x.score(word)
+                         for x in self.scorers])
 
     def _generic_func(self, words, indices, function, k=10):
         """
@@ -107,13 +145,13 @@ class Trnsps(object):
         assert np.all(lengths > self.length_limit)
         for w, index in zip(words, indices):
             res = {}
-            freq = self.mean_ngram_freq(w)
+            score = self.score(w)
             for i in index:
                 for new_w in function(w, i):
                     if new_w == w or new_w in self.reference_corpus:
                         continue
-                    new_freq = self.mean_ngram_freq(new_w)
-                    res[new_w] = abs(freq - new_freq)
+                    new_score = self.score(new_w)
+                    res[new_w] = np.sum(np.abs(1 - (new_score / score)))
             yield w, sorted(res.items(), key=lambda x: x[1])[:k]
 
     def transposition(self, words, min_c=0, max_c=2, n=1, k=10):
