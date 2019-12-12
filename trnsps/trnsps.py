@@ -70,15 +70,33 @@ class NeighborhoodScorer(object):
 
 
 class Trnsps(object):
+    """
+    Create a transposer.
 
+    Parameters
+    ----------
+    reference_corpus : list
+        A list of strings. The words in this list should be lowercased,
+        latin alphabet characters. They may have diacritics, but any
+        generated non-words will not have any diacritics.
+    scorers : list or object or None, default None
+        A list of scorers or a single scorer. A scorer is an object that
+        can be fit on words.
+        It can then produce a score for new non-words, where word-like
+        non-words should get higher scores.
+        If this is None, we select a single scorer, the NGramScorer.
+
+    """
     def __init__(self,
                  reference_corpus,
-                 scorers,
+                 scorers=None,
                  allow_outer=False):
         """Reference corpus."""
         if not all([not set(strip_accents(x)) - LETTERS
                     for x in reference_corpus]):
             raise ValueError("Some words were not alphabetical.")
+        if scorers is None:
+            scorers = NGramScorer()
         if not isinstance(scorers, (list, tuple, set)):
             scorers = (scorers,)
         self.reference_corpus = set(reference_corpus)
