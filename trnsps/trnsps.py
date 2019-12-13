@@ -96,7 +96,7 @@ class Trnsps(object):
                     for x in reference_corpus]):
             raise ValueError("Some words were not alphabetical.")
         if scorers is None:
-            scorers = NGramScorer()
+            scorers = NGramScorer(2)
         if not isinstance(scorers, (list, tuple, set)):
             scorers = (scorers,)
         self.reference_corpus = set(reference_corpus)
